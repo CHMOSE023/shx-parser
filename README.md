@@ -69,14 +69,7 @@ cmake --build build --config Release
 # 运行单元测试
 cd build && ctest -C Release --output-on-failure
 ```
-
-构建产物：
-
-| 产物     | 路径                                          |
-| -------- | --------------------------------------------- |
-| 静态库   | `build/src/Release/shx_parser.lib`（Windows） |
-| 示例程序 | `build/examples/Release/shx_example.exe`      |
-| 单元测试 | `build/tests/Release/shx_tests.exe`           |
+ 
 
 #### CMake 选项
 
@@ -90,81 +83,7 @@ cd build && ctest -C Release --output-on-failure
 
 所有符号位于 `shx` 命名空间，统一通过 `#include "shx_parser.h"` 引入。
 
-#### `ShxFont`
-
-```cpp
-#include "shx_parser.h"
-
-// 从二进制缓冲区构造
-shx::ShxFont font(buffer.data(), buffer.size());
-// 或
-shx::ShxFont font(std::vector<uint8_t>{...});
-// 或从已解析的结构构造
-shx::ShxFont font(shx::FontData{...});
-
-// 获取字体元数据
-const shx::FontData& data = font.fontData();
-
-// 判断是否包含指定字符
-bool exists = font.hasChar(65);
-
-// 获取字符形状（返回 std::optional）
-std::optional<shx::ShxShape> shape = font.getCharShape(65, 12.0);
-if (shape) {
-    for (const auto& polyline : shape->polylines) { /* ... */ }
-}
-
-// 释放缓存
-font.release();
-```
-
-#### `ShxShape`
-
-```cpp
-struct shx::ShxShape {
-    std::optional<shx::Point>              lastPoint;  // 字符推进终点
-    std::vector<std::vector<shx::Point>>   polylines;  // 折线数组（Y 轴向上）
-
-    const shx::Box2d& bbox() const;  // 包围盒（懒加载缓存）
-
-    ShxShape offset(const Point& p, bool isNewInstance = true) const;
-    ShxShape normalizeToOrigin(bool isNewInstance = false) const;
-    std::string toSVG(...) const;
-};
-```
-
-#### 完整示例
-
-```cpp
-#include "shx_parser/shx_parser.h"
-#include <fstream>
-#include <iostream>
-
-int main() {
-    // 读取字体文件
-    std::ifstream f("ISO.shx", std::ios::binary);
-    std::vector<uint8_t> buf(std::istreambuf_iterator<char>(f), {});
-
-    shx::ShxFont font(buf);
-
-    // 打印元数据
-    const auto& h = font.fontData().header;
-    const auto& c = font.fontData().content;
-    std::cout << "类型: "   << (int)h.fontType    << "\n"
-              << "字符数: " << c.data.size()       << "\n"
-              << "高度: "   << c.height            << "\n";
-
-    // 获取 'A' 的形状
-    auto shape = font.getCharShape(65, 12.0);
-    if (shape) {
-        std::cout << "折线数: " << shape->polylines.size() << "\n";
-        // 转换为 SVG 路径
-        std::cout << shape->toSVG("1px", "black", true);
-    }
-
-    font.release();
-}
-```
+ 
 
 ### 运行示例
 
@@ -250,28 +169,4 @@ ShxShape            — 折线几何 + 包围盒 + SVG 输出
 | BIGFONT normalizeToOrigin | `ShxFont.getCharShape` 对 BIGFONT 类型额外调用一次原点对齐             |
 
 ---
-
-## 项目结构
-
-```
-shx-parser/
-├── src/                        # TypeScript 源码
-│   ├── CMakeLists.txt
-│   ├── include/shx_parser/     # 公开头文件
-│   ├── src/                    # 实现文件
-│   ├── tests/                  # GoogleTest 单元测试
-│   └── examples/               # 控制台示例程序
-├── examples/                   # TypeScript/JS 示例
-│   ├── example.js              # Node.js 示例（生成 SVG）
-│   └── index.html              # 交互式 Web 演示
-├── data/                       # 测试字体文件
-│   ├── ISO.shx
-│   └── SIMPLEX8.shx
-└── dist/                       # TypeScript 构建产物（gitignore）
-```
-
----
-
-## 许可证
-
-本项目基于 [MIT 许可证](LICENSE) 开源，欢迎自由使用和贡献。
+ 
