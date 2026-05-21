@@ -1,317 +1,277 @@
-# SHX Parser
+# SHX 字体解析库
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![npm version](https://badge.fury.io/js/@mlightcad%2Fshx-parser.svg)](https://badge.fury.io/js/@mlightcad/shx-parser)
+用于解析 AutoCAD SHX 字体文件的库，提供 **C++** 实现。
 
-A TypeScript library for parsing AutoCAD SHX font files. It is ported from [this project](https://github.com/yzylovepmn/YFonts.SHX) written by C#. This project fixed many bugs on the original parser. Moreover, support parsing [extended big font](https://help.autodesk.com/view/OARX/2023/ENU/?guid=GUID-00ED0CC6-A4BE-4591-93FA-598CC40AA43D).
+本项目移植自 [shx-parser（TS）](https://github.com/mlightcad/shx-parser)
 
-If you are interested in the format of SHX font, please refer to [this document](https://help.autodesk.com/view/OARX/2023/ENU/?guid=GUID-06832147-16BE-4A66-A6D0-3ADF98DC8228).
+---
 
-[**🌐 Live Demo**](https://mlightcad.gitlab.io/shx-parser/)
+## 目录
 
-## Features
+- [功能特性](#功能特性)
+- [支持的字体类型](#支持的字体类型)
+- [项目构建](#项目构建)
+  - [环境要求](#环境要求)
+  - [构建](#构建)
+  - [API 参考（C++）](#api-参考c)
+  - [运行示例](#运行示例)
+- [架构说明](#架构说明)
+- [许可证](#许可证)
 
-- Parse SHX font files and extract font data
-- Support for various SHX font types:
-  - Shapes
-  - Bigfont (including Extended Big Font)
-  - Unifont
-- Shape parsing with performance optimization:
-  - On-demand parsing
-  - Shape caching by character code
-- Modern TypeScript implementation
-- Object-oriented design
-- Comprehensive test coverage
+---
 
-## Installation
+## 功能特性
 
-Using npm:
+- 解析 SHX 字体文件，提取完整字体数据
+- 支持三种字体类型：Shapes、Bigfont（含扩展大字体）、Unifont
+- 按需解析 + 形状缓存，性能优异
+- 支持 Windows / Linux / macOS（C++17，无第三方依赖）
+- 完善的单元测试覆盖
+
+---
+
+## 支持的字体类型
+
+| 类型      | 文件头标识           | 说明                                         |
+| --------- | -------------------- | -------------------------------------------- |
+| `shapes`  | `AutoCAD-86 shapes`  | 标准形状字体，最常见                         |
+| `bigfont` | `AutoCAD-86 bigfont` | 大字体（中日韩等多字节字符集），含扩展大字体 |
+| `unifont` | `AutoCAD-86 unifont` | Unicode 字体                                 |
+
+---
+
+## 项目构建
+
+无第三方运行时依赖。
+
+### 环境要求
+
+| 项目             | 要求                                  |
+| ---------------- | ------------------------------------- |
+| CMake            | ≥ 3.16                                |
+| C++ 标准         | C++17                                 |
+| 编译器           | MSVC 2019+、GCC 9+、Clang 10+         |
+| 单元测试（可选） | 自动通过 FetchContent 下载 GoogleTest |
+
+### 构建
+
 ```bash
-npm install @mlightcad/shx-parser
+
+# 配置（默认启用测试和示例）
+cmake -S . -B build
+
+# 仅构建库（跳过测试和示例，无需联网）
+cmake -S . -B build -DSHX_BUILD_TESTS=OFF -DSHX_BUILD_EXAMPLES=OFF
+
+# 编译
+cmake --build build --config Release
+
+# 运行单元测试
+cd build && ctest -C Release --output-on-failure
 ```
 
-Using pnpm:
-```bash
-pnpm add @mlightcad/shx-parser
-```
+构建产物：
 
-Using yarn:
-```bash
-yarn add @mlightcad/shx-parser
-```
+| 产物     | 路径                                          |
+| -------- | --------------------------------------------- |
+| 静态库   | `build/src/Release/shx_parser.lib`（Windows） |
+| 示例程序 | `build/examples/Release/shx_example.exe`      |
+| 单元测试 | `build/tests/Release/shx_tests.exe`           |
 
-## Demo app
+#### CMake 选项
 
-The [demo app](https://mlightcad.gitlab.io/shx-parser/) is provided with a web-based interface for viewing and exploring SHX font files with the following features:
+| 选项                 | 默认值 | 说明                     |
+| -------------------- | ------ | ------------------------ |
+| `SHX_BUILD_TESTS`    | `ON`   | 构建 GoogleTest 单元测试 |
+| `SHX_BUILD_EXAMPLES` | `ON`   | 构建示例程序             |
+| `SHX_BUILD_SHARED`   | `OFF`  | 构建动态库（默认静态库） |
 
-- **Dual Loading Modes**:
-  - Upload local SHX files
-  - Select from a remote font library
+### API 参考（C++）
 
-- **Main Features**:
-  - View all characters in a responsive grid layout
-  - Search characters by code (decimal/hex)
-  - Click characters to see them in a larger modal view
-  - Toggle between decimal and hexadecimal code display
+所有符号位于 `shx` 命名空间，统一通过 `#include "shx_parser.h"` 引入。
 
-- **Display Information**:
-  - Shows font type, version, and character count
-  - Renders characters as SVG graphics
-  - Responsive grid layout that works on different screen sizes
+#### `ShxFont`
 
+```cpp
+#include "shx_parser.h"
 
-## Quick Start
+// 从二进制缓冲区构造
+shx::ShxFont font(buffer.data(), buffer.size());
+// 或
+shx::ShxFont font(std::vector<uint8_t>{...});
+// 或从已解析的结构构造
+shx::ShxFont font(shx::FontData{...});
 
-```typescript
-import { ShxFont } from '@mlightcad/shx-parser';
+// 获取字体元数据
+const shx::FontData& data = font.fontData();
 
-// Load the font file
-const fontFileData = /* ArrayBuffer containing SHX font file data */;
-const font = new ShxFont(fontFileData);
+// 判断是否包含指定字符
+bool exists = font.hasChar(65);
 
-// Get shape for a character
-const charCode = 65; // ASCII code for 'A'
-const fontSize = 12;
-const shape = font.getCharShape(charCode, fontSize);
-
+// 获取字符形状（返回 std::optional）
+std::optional<shx::ShxShape> shape = font.getCharShape(65, 12.0);
 if (shape) {
-  console.log(shape.polylines); // Array of polylines representing the character
-  console.log(shape.lastPoint); // End point of the character
+    for (const auto& polyline : shape->polylines) { /* ... */ }
 }
 
-// Clean up resources when done
+// 释放缓存
 font.release();
 ```
 
-## API Documentation
+#### `ShxShape`
 
-### `ShxFont`
+```cpp
+struct shx::ShxShape {
+    std::optional<shx::Point>              lastPoint;  // 字符推进终点
+    std::vector<std::vector<shx::Point>>   polylines;  // 折线数组（Y 轴向上）
 
-The main class for working with SHX fonts.
+    const shx::Box2d& bbox() const;  // 包围盒（懒加载缓存）
 
-```typescript
-class ShxFont {
-  fontData: ShxFontData;
-  constructor(data: ArrayBuffer);
-  getCharShape(charCode: number, size: number): ShxShape | null;
-  release(): void;
-}
+    ShxShape offset(const Point& p, bool isNewInstance = true) const;
+    ShxShape normalizeToOrigin(bool isNewInstance = false) const;
+    std::string toSVG(...) const;
+};
 ```
 
-### `ShxShape`
+#### 完整示例
 
-Represents a parsed character shape.
+```cpp
+#include "shx_parser/shx_parser.h"
+#include <fstream>
+#include <iostream>
 
-```typescript
-interface ShxShape {
-  polylines: Array<{ x: number; y: number }[]>; // Array of polyline points
-  lastPoint?: { x: number; y: number };         // End point of the shape (optional)
-  bbox: {                                       // Bounding box of the shape
-    minX: number;
-    minY: number;
-    maxX: number;
-    maxY: number;
-  };
-}
-```
+int main() {
+    // 读取字体文件
+    std::ifstream f("ISO.shx", std::ios::binary);
+    std::vector<uint8_t> buf(std::istreambuf_iterator<char>(f), {});
 
-### Font Data Structure
+    shx::ShxFont font(buf);
 
-The library parses SHX font files into the following structure:
+    // 打印元数据
+    const auto& h = font.fontData().header;
+    const auto& c = font.fontData().content;
+    std::cout << "类型: "   << (int)h.fontType    << "\n"
+              << "字符数: " << c.data.size()       << "\n"
+              << "高度: "   << c.height            << "\n";
 
-```typescript
-interface ShxFontData {
-  header: {
-    fontType: ShxFontType;     // 'shapes' | 'bigfont' | 'unifont'
-    fileHeader: string;        // Font file header information
-    fileVersion: string;       // Font file version
-  };
-  content: {
-    data: Record<number, Uint8Array>;  // Character code to bytecode data mapping
-    info: string;              // Additional font information
-    orientation: string;       // Text orientation ('horizontal' | 'vertical')
-    height: number;            // Character height (units used to scale primitives)
-    width: number;             // Character width (units used to scale primitives)
-    isExtended: boolean;       // Flag to indicate if the font is an extended big font
-  };
-}
-```
-
-## Example
-
-### Loading and Displaying Font Information
-
-```typescript
-import { readFile } from 'fs/promises';
-import { ShxFont } from '@mlightcad/shx-parser';
-
-async function loadFont(filePath: string) {
-  const buffer = await readFile(filePath);
-  const font = new ShxFont(buffer.buffer);
-  
-  // Display font information
-  const fontData = font.fontData;
-  console.log('Font Information:');
-  console.log('----------------');
-  console.log('Font Type:', fontData.header.fontType);
-  console.log('Header:', fontData.header.fileHeader);
-  console.log('Version:', fontData.header.fileVersion);
-  console.log('Info:', fontData.content.info);
-  console.log('Orientation:', fontData.content.orientation);
-  console.log('Height:', fontData.content.height);
-  console.log('Width:', fontData.content.width);
-  console.log('Number of shapes:', Object.keys(fontData.content.data).length);
-  
-  return font;
-}
-```
-
-### Converting Shape to SVG Path
-
-```typescript
-function shapeToSvgPath(shape: ShxShape, x: number = 0, y: number = 0): string {
-  if (!shape?.polylines.length) return '';
-  
-  return shape.polylines.map(polyline => {
-    if (!Array.isArray(polyline) || polyline.length === 0) return '';
-    
-    return polyline.map((point, i) => {
-      const scaledX = (Number(point.x) || 0) + x;
-      const scaledY = -(Number(point.y) || 0) + y; // Flip Y coordinate for SVG
-      const command = i === 0 ? 'M' : 'L';
-      return `${command} ${scaledX.toFixed(2)} ${scaledY.toFixed(2)}`;
-    }).join(' ');
-  }).filter(Boolean).join(' ');
-}
-```
-
-### Rendering Text to SVG
-
-```typescript
-interface SvgOptions {
-  width?: number;
-  height?: number;
-  strokeWidth?: string;
-  strokeColor?: string;
-  isAutoFit?: boolean;
-}
-
-function renderTextToSvg(
-  font: ShxFont,
-  text: string,
-  fontSize: number,
-  options: SvgOptions = {}
-): SVGElement {
-  const {
-    width = 1000,
-    height = 1000,
-    strokeWidth = '0.1%',
-    strokeColor = 'black',
-    isAutoFit = false
-  } = options;
-
-  // Create SVG element
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.setAttribute('width', width.toString());
-  svg.setAttribute('height', height.toString());
-  svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
-
-  const padding = fontSize;
-  let currentX = padding;
-  let maxHeight = 0;
-
-  // Process each character
-  for (const char of text) {
-    const charCode = char.charCodeAt(0);
-    const shape = font.getCharShape(charCode, fontSize);
-    
+    // 获取 'A' 的形状
+    auto shape = font.getCharShape(65, 12.0);
     if (shape) {
-      const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-      
-      if (isAutoFit) {
-        // Auto-fit positioning
-        const bbox = shape.bbox;
-        const padding = 0.2; // 20% padding
-        const charBBoxWidth = bbox.maxX - bbox.minX;
-        const charBBoxHeight = bbox.maxY - bbox.minY;
-        const centerX = (bbox.minX + bbox.maxX) / 2;
-        const centerY = (bbox.minY + bbox.maxY) / 2;
-        group.setAttribute('transform', `translate(${currentX - centerX}, ${-centerY})`);
-      } else {
-        // Fixed positioning
-        group.setAttribute('transform', `translate(${currentX + width / 2}, ${height / 2})`);
-      }
-
-      // Create path for the character
-      const pathData = shapeToSvgPath(shape);
-      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      path.setAttribute('d', pathData);
-      path.setAttribute('fill', 'none');
-      path.setAttribute('stroke', strokeColor);
-      path.setAttribute('stroke-width', strokeWidth);
-      
-      group.appendChild(path);
-      svg.appendChild(group);
-
-      // Update position for next character
-      if (shape.lastPoint) {
-        currentX += shape.lastPoint.x + fontSize * 0.5;
-      } else {
-        currentX += fontSize;
-      }
-      
-      maxHeight = Math.max(maxHeight, fontSize);
+        std::cout << "折线数: " << shape->polylines.size() << "\n";
+        // 转换为 SVG 路径
+        std::cout << shape->toSVG("1px", "black", true);
     }
-  }
 
-  return svg;
-}
-
-// Example usage:
-async function main() {
-  try {
-    const font = await loadFont('path/to/your/font.shx');
-    
-    // Example 1: Basic rendering
-    const svgElement1 = renderTextToSvg(font, "Hello", 12);
-    document.body.appendChild(svgElement1);
-    
-    // Example 2: Auto-fit rendering with custom options
-    const svgElement2 = renderTextToSvg(font, "Hello", 12, {
-      width: 1000,
-      height: 1000,
-      strokeWidth: '0.1%',
-      strokeColor: 'black',
-      isAutoFit: true
-    });
-    document.body.appendChild(svgElement2);
-    
-    // Clean up resources when done
     font.release();
-  } catch (error) {
-    console.error('Error:', error instanceof Error ? error.message : 'An unknown error occurred');
-  }
 }
 ```
 
-## Contributing
+### 运行示例
 
-Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
+示例程序会加载 `data/` 目录下的两个字体文件，将解析信息打印到控制台，并将 `"ABCDEF123"` 渲染为 SVG 文件保存到 `cpp/examples/`。
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+```bash
+# 构建并运行
+cmake -S cpp -B cpp/build -DSHX_BUILD_TESTS=OFF
+cmake --build cpp/build --config Release --target shx_example
+./cpp/build/examples/Release/shx_example.exe
+```
 
-Please make sure to update tests as appropriate.
+控制台输出示例：
 
-## License
+```
+========================================
+Reading font file: .../data/ISO.shx
+File size: 4063 bytes
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Font Information:
+----------------
+Font Type   : shapes
+Header      : AutoCAD-86
+Version     : 1.0
+Info        : ISO, Font 09/22/86 ...
+Orientation : vertical
+Base Up     : 18 / Base Down: 6
+Height      : 24 / Width   : 24
+Shapes count: 127
+Available codes (first 30): 0, 1, 10, 13, 32, 33, 34, ...
+----------------
 
-## Support
+Shape details for "ABCDEF123" at size 12:
+  Char 'A' (code 65)  polylines=2  lastPoint=(9.00, 0.00)
+    polyline[0]  pts=3  start=(6.00,0.00)  end=(0.00,0.00)
+    polyline[1]  pts=2  start=(1.00,2.50)  end=(5.00,2.50)
+  ...
 
-If you have any questions or run into issues, please:
-1. Check the [GitHub Issues](https://gitlab.com/mlightcad/shx-parser/-/issues) page
-2. Open a new issue if your problem hasn't been reported yet
+SVG saved to: .../cpp/examples/iso_output.svg
+```
+
+---
+
+## 架构说明
+
+两个版本共享相同的解析管线设计：
+
+```
+二进制数据（ArrayBuffer / vector<uint8_t>）
+    │
+    ▼
+FileReader          — 底层字节读取（Little-Endian）
+    │
+    ▼
+HeaderParser        — 解析文件头，识别字体类型
+    │
+    ▼
+ContentParserFactory
+  ├── ShapeContentParser   — SHAPES 类型：顺序读取字符目录
+  ├── BigfontContentParser — BIGFONT 类型：偏移量表随机访问 + 扩展大字体
+  └── UnifontContentParser — UNIFONT 类型：Unicode 字符目录 + 标签跳过
+    │
+    ▼
+FontData            — 结构化元数据 + 字符码 → 字节码映射
+    │
+    ▼
+ShapeParser         — SHP 字节码虚拟机（按需解析 + LRU 缓存）
+  ├── 特殊命令 0x00–0x0F：钢笔抬放、弧线、子形状、位移、缩放、压栈
+  └── 向量命令 0x10–0xFF：高4位=长度，低4位=16方向之一
+    │
+    ▼
+ShxShape            — 折线几何 + 包围盒 + SVG 输出
+```
+
+### 关键设计点
+
+| 设计                      | 说明                                                                   |
+| ------------------------- | ---------------------------------------------------------------------- |
+| 按需解析                  | 字符首次访问时才解析字节码，避免启动时全量解析                         |
+| 形状缓存                  | 解析后的基础形状（未缩放）存入 `Map / unordered_map`，重复访问直接缩放 |
+| 扩展大字体子形状          | 命令 `7,0,primitive#,x,y,w,h` — 子形状归一化后按比例缩放并偏移插入     |
+| Y 轴约定                  | 内部坐标系 Y 轴向上；渲染到 SVG 时需翻转：`y_svg = -y + offset`        |
+| BIGFONT normalizeToOrigin | `ShxFont.getCharShape` 对 BIGFONT 类型额外调用一次原点对齐             |
+
+---
+
+## 项目结构
+
+```
+shx-parser/
+├── src/                        # TypeScript 源码
+│   ├── CMakeLists.txt
+│   ├── include/shx_parser/     # 公开头文件
+│   ├── src/                    # 实现文件
+│   ├── tests/                  # GoogleTest 单元测试
+│   └── examples/               # 控制台示例程序
+├── examples/                   # TypeScript/JS 示例
+│   ├── example.js              # Node.js 示例（生成 SVG）
+│   └── index.html              # 交互式 Web 演示
+├── data/                       # 测试字体文件
+│   ├── ISO.shx
+│   └── SIMPLEX8.shx
+└── dist/                       # TypeScript 构建产物（gitignore）
+```
+
+---
+
+## 许可证
+
+本项目基于 [MIT 许可证](LICENSE) 开源，欢迎自由使用和贡献。
